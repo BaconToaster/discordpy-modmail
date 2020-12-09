@@ -51,16 +51,16 @@ async def on_ready():
     activity = discord.Activity(type=discord.ActivityType.listening, name="your PMs")
     await client.change_presence(activity=activity)
 
-@tasks.loop()
 async def GetMessages(message : discord.Message, teamChannel : discord.TextChannel):
-    def checkUser(m):
-        return (m.channel == message.channel or m.channel == teamChannel) and not m.author.bot
+    while True:
+        def checkUser(m):
+            return (m.channel == message.channel or m.channel == teamChannel) and not m.author.bot
 
-    msg = await client.wait_for("message", check=checkUser)
-    if msg.channel == teamChannel:
-        await SendMsgAndAddLog(f"**[{msg.author.name}]**: {msg.content}", message.channel, message.author)
-    elif msg.channel == message.channel:
-        await SendMsgAndAddLog(f"**[{msg.author.name}]**: {msg.content}", teamChannel, message.author)
+        msg = await client.wait_for("message", check=checkUser)
+        if msg.channel == teamChannel:
+            await SendMsgAndAddLog(f"**[{msg.author.name}]**: {msg.content}", message.channel, message.author)
+        elif msg.channel == message.channel:
+            await SendMsgAndAddLog(f"**[{msg.author.name}]**: {msg.content}", teamChannel, message.author)
 
 @client.event
 async def on_message(message):
@@ -101,9 +101,9 @@ async def on_message(message):
             def checkReaction(reaction, user):
                 return str(reaction.emoji) == "🔒" and reaction.message.id == closeMsg.id and not user.bot
 
-            GetMessages.start(message, teamChannel)
+            ctask = asyncio.create_task(GetMessages(message, teamChannel))
             await client.wait_for("reaction_add", check=checkReaction)
-            GetMessages.cancel()
+            ctask.cancel()
             
             await globals.ticketSaveChannel.send(file=discord.File(f"{message.author.name}#{message.author.discriminator}.txt"))
             await teamChannel.delete(reason="The ticket was closed")
