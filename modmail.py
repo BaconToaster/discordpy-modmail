@@ -37,11 +37,35 @@ class GlobalVars:
 
 globals = None
 
+async def AddLog(text, user : discord.Member):
+    f = open(f"{user.name}#{user.discriminator}.txt", "a")
+    f.writelines(text + "\n\n")
+    f.flush()
+
 async def SendMsgAndAddLog(text, channel : discord.TextChannel, user : discord.Member):
     f = open(f"{user.name}#{user.discriminator}.txt", "a")
     f.writelines(text + "\n\n")
     f.flush()
     await channel.send(text)
+    
+async def GetMessages(message : discord.Message, teamChannel : discord.TextChannel):
+    while True:
+        def checkUser(m):
+            return (m.channel == message.channel or m.channel == teamChannel) and not m.author.bot
+
+        msg = await client.wait_for("message", check=checkUser)
+        if msg.channel == teamChannel:
+            if msg.content.lower().startswith("#"):
+                await AddLog(f"**[{msg.author.name}]**: {msg.content}", message.author)
+            else:
+                await SendMsgAndAddLog(f"**[{msg.author.name}]**: {msg.content}", message.channel, message.author)
+        elif msg.channel == message.channel:
+            if "@everyone" in msg.content or "@here" in msg.content:
+                fixedcontent = msg.content.replace("@everyone", "everyone")
+                fixedcontent = fixedcontent.replace("@here", "here")
+                await SendMsgAndAddLog(f"**[{msg.author.name}]**: {fixedcontent}", teamChannel, message.author)
+            else:
+                await SendMsgAndAddLog(f"**[{msg.author.name}]**: {msg.content}", teamChannel, message.author)
 
 @client.event
 async def on_ready():
@@ -50,17 +74,6 @@ async def on_ready():
     globals = GlobalVars()
     activity = discord.Activity(type=discord.ActivityType.listening, name="your PMs")
     await client.change_presence(activity=activity)
-
-async def GetMessages(message : discord.Message, teamChannel : discord.TextChannel):
-    while True:
-        def checkUser(m):
-            return (m.channel == message.channel or m.channel == teamChannel) and not m.author.bot
-
-        msg = await client.wait_for("message", check=checkUser)
-        if msg.channel == teamChannel:
-            await SendMsgAndAddLog(f"**[{msg.author.name}]**: {msg.content}", message.channel, message.author)
-        elif msg.channel == message.channel:
-            await SendMsgAndAddLog(f"**[{msg.author.name}]**: {msg.content}", teamChannel, message.author)
 
 @client.event
 async def on_message(message):
